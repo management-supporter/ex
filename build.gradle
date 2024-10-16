@@ -1,0 +1,110 @@
+plugins {
+    id("java")
+    id("org.springframework.boot") version "3.2.3"
+    id("io.spring.dependency-management") version "1.1.4"
+    id("nu.studer.jooq") version "9.0"
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src/main/java", "src/generated"]
+        }
+    }
+}
+
+dependencies {
+    implementation("org.jooq:jooq:${jooqVersion}")
+
+    jooqGenerator project(":jooq-custom")
+    jooqGenerator("org.jooq:jooq:${jooqVersion}")
+    jooqGenerator("org.jooq:jooq-meta:${jooqVersion}")
+
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-jooq") {
+        exclude(group: "org.jooq")
+    }
+
+    runtimeOnly("com.mysql:mysql-connector-j")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+
+    // Lombok
+    compileOnly("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+}
+
+tasks.named("test") {
+    useJUnitPlatform()
+}
+
+String dbUser = System.getenv("USERNAME")
+String dbPasswd = System.getenv("PASSWORD")
+
+jooq {
+    version = "${jooqVersion}"
+    configurations {
+        sakilaDB {
+            generationTool {
+                jdbc {
+                    driver = "com.mysql.cj.jdbc.Driver"
+                    url = System.getenv("DATABASE_URL")
+                    user = System.getenv("USERNAME")
+                    password = System.getenv("PASSWORD")
+                }
+                generator {
+                    name = "org.jooq.codegen.DefaultGenerator"
+
+                    database {
+                        name = "org.jooq.meta.mysql.MySQLDatabase"
+                        unsignedTypes = true
+                        forcedTypes {
+                            forcedType {
+                                userType = "java.lang.Long"
+                                includeTypes = "int unsigned"
+                            }
+
+                            forcedType {
+                                userType = "java.lang.Integer"
+                                includeTypes = "tinyint unsigned"
+                            }
+
+                            forcedType {
+                                userType = "java.lang.Integer"
+                                includeTypes = "smallint unsigned"
+                            }
+                            forcedType {
+                                name = "com.example.jooq.converters.ByteToBooleanConverter"
+                                expression = ".*\\.deleted"
+                                types = "TINYINT(1)"
+                            }
+                        }
+                        schemata {
+                            schema {
+                                inputSchema = "test"
+                            }
+                        }
+                    }
+
+                    generate {
+                        daos = true
+                        records = true
+                        fluentSetters = true
+                        javaTimeTypes = true
+                        deprecated = false
+                        springAnnotations = true
+                        springDao = true
+                    }
+
+                    target {
+                        directory = "src/generated"
+                    }
+                    strategy.name = "jooq.custom.generator.JooqPrefixGeneratorStrategy"
+                }
+            }
+        }
+    }
+}

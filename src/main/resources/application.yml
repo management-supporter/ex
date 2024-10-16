@@ -1,0 +1,8 @@
+spring:
+  jooq:
+    sql-dialect: MySQL
+  datasource:
+    url: ${URL}
+    username: ${USERNAME}
+    password: ${PASSWORD}
+    driverClassName: com.mysql.cj.jdbc.Driver
